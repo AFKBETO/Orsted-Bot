@@ -61,7 +61,7 @@ async def on_message(message):
         return
 
     if message.content.startswith('!help'):
-      await message.channel.send("List of commands: \n**!ship @mention**: Ship somebody with a random character.\n**!ship @mention (multiple)**: Ship multiple members. \n**!apostle @mention**: Somebody is a Hitogami's apostle! \n**!holyemotes**: Post the holy emotes \n**!axa**: Post the AxA gif \n**!wholesomekiss**: Post a wholesome kiss \n**!roxynom**: Feed Roxy! \n**!lewdroxy**: God is feeling horny today \n\nModerators only: \n**!donut @mention**: Call Papa Orsted to donut somebody.")
+      await message.channel.send("List of commands: \n**!ship @mention**: Ship somebody with a random character.\n**!ship @mention (multiple)**: Ship multiple members. \n**!apostle @mention**: Somebody is a Hitogami's apostle! \n**!holyemotes**: Post the holy emotes \n**!axa**: Post the AxA gif \n**!cunny**: Give me your body! \n**!wholesomekiss**: Post a wholesome kiss \n**!roxynom**: Feed Roxy! \n**!lewdroxy**: God is feeling horny today \n\nModerators only: \n**!donut @mention**: Call Papa Orsted to donut somebody.")
 
     if message.content.startswith('!ship'):
         if len(message.mentions):
@@ -294,6 +294,9 @@ async def on_message(message):
     if message.content.startswith('!axa'):
         await message.channel.send('https://images-ext-2.discordapp.net/external/aZqy-7bn2Kjl2QeIEsF_wmXC-ZLlTVDz3R-a_BXcX-Q/https/media.discordapp.net/attachments/558540706302394368/817231396484677673/Comp_1_1.gif?width=894&height=503')
     
+    if message.content.startswith('!cunny'):
+        await message.channel.send('https://cdn.discordapp.com/attachments/403019763825246209/894328456609939516/1633281014083.webm')
+
     if message.content.startswith('!wholesomekiss'):
         j = oldkiss
         while j == oldkiss:
