@@ -23,6 +23,10 @@ namecount = 0
 wholesomekiss = ["https://media.discordapp.net/attachments/824175906120663060/843483983080849418/E0ndCMxVoAAeSy3.png?width=804&height=504","https://media.discordapp.net/attachments/824175906120663060/843465128644313108/20210511_104844.png?width=952&height=504"]
 oldkiss = 0
 kisscount = 0
+matchhash = {}
+matchcd = 86400
+
+
 
 @client.event
 async def on_ready():
@@ -32,6 +36,7 @@ async def on_ready():
     global premiumrole
     global muterole
     global spankdur
+    global hallofshame
 
     print('We have logged in as {0.user}'.format(client))
     for emote in client.emojis:
@@ -46,6 +51,11 @@ async def on_ready():
         adminrole = targetguild.get_role(814172905130557443)
         premiumrole = targetguild.premium_subscriber_role
         muterole = targetguild.get_role(815600544873578526)
+        general = targetguild.get_channel(814170478566178879)
+        hallofshame = targetguild.get_channel(899259828562710578)
+    
+    string = client.user.mention + " has started another loop!"
+    await general.send(string)
 
 @client.event
 async def on_message(message):
@@ -56,12 +66,26 @@ async def on_message(message):
     global oldkiss
     global kisscount
     global spankdur
+    global matchhash
+    global matchcd
 
     if message.author == client.user:
         return
+    
+    if message.channel.id == 899259828562710578:
+      return
 
     if message.content.startswith('!help'):
-      await message.channel.send("List of commands: \n**!ship @mention**: Ship somebody with a random character.\n**!ship @mention (multiple)**: Ship multiple members. \n**!apostle @mention**: Somebody is a Hitogami's apostle! \n**!holyemotes**: Post the holy emotes \n**!axa**: Post the AxA gif \n**!cunny**: Give me your body! \n**!wholesomekiss**: Post a wholesome kiss \n**!roxynom**: Feed Roxy! \n**!lewdroxy**: God is feeling horny today \n\nModerators only: \n**!donut @mention**: Call Papa Orsted to donut somebody.")
+      await message.channel.send("List of commands: \n**!ship @mention**: Ship somebody with a random character.\n**!ship @mention (multiple)**: Ship multiple members. \n**!match @mention**: Find compatibility of a member with a random character.\n**!match @mention @mention**: Find compatibility between two members. \n**!apostle @mention**: Somebody is a Hitogami's apostle! \n**!spank @mention**: Try to spank a member!\n**!shame post_id**: Put a post in #hall-of-shame! \n\nGif commands: \n**!holyemotes**: Post the holy emotes \n**!axa**: Post the AxA gif \n**!cunny**: Give me your body! \n**!bread**: Breadgasm! \n**!wholesomekiss**: Post a wholesome kiss \n**!roxynom**: Feed Roxy! \n**!lewdroxy**: God is feeling horny today \n**!iloveyou**: God will confess her love! \n\nModerators only: \n**!donut @mention**: Call Papa Orsted to donut somebody.")
+
+    if message.content.startswith('!shame '):
+      id = int(message.content[7:])
+      targetMessage = await message.channel.fetch_message(id)
+      targetContent = f"[**Link**]({targetMessage.jump_url}) \n\n{targetMessage.content}"
+      embedVar = discord.Embed(color=0xFF0000, description=targetContent)
+      embedVar.set_author(name=targetMessage.author.display_name,icon_url=targetMessage.author.avatar_url,)
+      await hallofshame.send(embed=embedVar)
+
 
     if message.content.startswith('!ship'):
         if len(message.mentions):
@@ -71,17 +95,14 @@ async def on_message(message):
             i = random.randrange(len(randname[j]))
             if client.user in message.mentions:
               member = message.author
-              embedVar = discord.Embed(color=0x000000, description="%s has shipped %s with %s for trying to ship Orsted!" % (client.user.mention,member.mention,randname[j][i]))
+              embedVar = discord.Embed(color=0x000000, description=f"{client.user.mention} has shipped {member.mention} with {randname[j][i]} for trying to ship Orsted!")
             elif len(message.mentions) == 1:
               member = message.mentions[0]
-              embedVar = discord.Embed(color=0x000000, description="%s has shipped %s with %s" % (message.author.mention,member.mention,randname[j][i]))
+              embedVar = embedShip(message.author.mention,member.mention,randname[j][i])
             elif len(message.mentions) == 2:
-              string = message.author.mention + " has shipped "
-              member = message.mentions[0]
-              string = string + member.mention + " and "
-              member = message.mentions[1]
-              string = string + member.mention
-              embedVar = discord.Embed(color=0x000000, description=string)
+              member1 = message.mentions[0]
+              member2 = message.mentions[1]
+              embedVar = embedShip(message.author.mention,member1.mention,member2.mention)
             else:
               string = message.author.mention + " has shipped "
               for i in range(len(message.mentions)-1):
@@ -93,6 +114,62 @@ async def on_message(message):
         else:
             embedVar = discord.Embed(color=0x000000, description="%s has shipped no one, the ship has sunk" % (message.author.mention))
         await message.channel.send(embed=embedVar)
+
+    if message.content.startswith('!match'):
+        if len(message.mentions):
+            j = random.randrange(10)
+            compatibility = random.randrange(100)
+            if j:
+              j = 1
+            i = random.randrange(len(randname[j]))
+            while randname[j][i] == "Orsted":
+              i = random.randrange(len(randname[j]))
+            if len(message.mentions) == 1:
+              member = message.mentions[0]
+              couple = member.mention + randname[j][i]
+              if(couple in matchhash):
+                compatibility = matchhash[couple]
+                embedVar = embedMatch(member.mention, randname[j][i],compatibility)
+                await message.channel.send(embed=embedVar)
+              else:
+                embedVar = embedMatch(member.mention, randname[j][i],compatibility)
+                await message.channel.send(embed=embedVar)
+                matchhash[couple] = compatibility
+
+                await asyncio.sleep(matchcd)
+                matchhash.pop(couple)
+            elif len(message.mentions) == 2:
+              member1 = message.mentions[0]
+              member2 = message.mentions[1]
+              couple1 = member1.mention + member2.mention
+              couple2 = member2.mention + member1.mention
+              if(couple1 in matchhash):
+                compatibility = matchhash[couple1]
+                embedVar = embedMatch(member1.mention, member2.mention,compatibility)
+                await message.channel.send(embed=embedVar)
+              elif (couple2 in matchhash):
+                compatibility = matchhash[couple2]
+                embedVar = embedMatch(member1.mention, member2.mention,compatibility)
+                await message.channel.send(embed=embedVar)
+              else:
+                embedVar = embedMatch(member1.mention, member2.mention,compatibility)
+                await message.channel.send(embed=embedVar)
+                matchhash[couple1] = compatibility
+
+                await asyncio.sleep(matchcd)
+                matchhash.pop(couple1)
+            else:
+              string = message.author.mention + " has tried to match "
+              for i in range(len(message.mentions)-1):
+                member = message.mentions[i]
+                string = string + member.mention + ", "
+              member = message.mentions[len(message.mentions)-1]
+              string = string + member.mention + ". How lewd!"
+              embedVar = discord.Embed(color=0x000000, description=string)
+              await message.channel.send(embed=embedVar)
+        else:
+            embedVar = discord.Embed(color=0x000000, description="%s has matched no one." % (message.author.mention))
+            await message.channel.send(embed=embedVar)
 
     if message.content.startswith('!spank'):
         spankurl = oldspank
@@ -112,7 +189,8 @@ async def on_message(message):
         if ((premiumrole in message.author.roles) or (message.author.guild_permissions.kick_members)):
             if len(message.mentions) == 1: 
                 target = message.mentions[0]
-                duration = 0
+                '''
+								duration = 0
                 durationstr = ''
                 duree = ''
                 messagecontent = message.content
@@ -166,11 +244,11 @@ async def on_message(message):
                     durationstr = durationstr + " and "
                   durationstr = durationstr + str(i) + " second"
                   if (i - 1):
-                    durationstr = durationstr + "s"
-                embedVar = discord.Embed(color=0x000000, description="%s has spanked %s for %s!" % (message.author.mention,target.mention,durationstr))
+                    durationstr = durationstr + "s"'''
+                embedVar = discord.Embed(color=0x000000, description="%s has spanked %s!" % (message.author.mention,target.mention))
                 if target == message.author:
-                  durationstr = spankdur
-                  embedVar = discord.Embed(color=0x000000, description="%s has spanked him/herself for %ss!" % (message.author.mention,durationstr))
+                  '''durationstr = spankdur'''
+                  embedVar = discord.Embed(color=0x000000, description="%s has spanked him/herself!" % (message.author.mention))
                 embedVar.set_image(url=spankurl)
             elif len(message.mentions) > 1:
                 target = 0
@@ -182,14 +260,14 @@ async def on_message(message):
                 embedVar.set_image(url="https://c.tenor.com/4hQUTxADAT8AAAAC/kiznaiber-hand.gif")
         else:
             target = message.author
-            embedVar = discord.Embed(color=0x000000, description="%s has been spanked for %ss!" % (target.mention,str(spankdur)))
+            embedVar = discord.Embed(color=0x000000, description="%s has been spanked!" % (target.mention))
             if len(message.mentions):
                 for checkmember in message.mentions:
                     if checkmember == target:
-                        embedVar = discord.Embed(color=0x000000, description="%s has spanked him/herself for %ss!" % (target.mention, str(spankdur)))
+                        embedVar = discord.Embed(color=0x000000, description="%s has spanked him/herself!" % (target.mention))
                         break
                     if (premiumrole in checkmember.roles or checkmember.guild_permissions.kick_members):
-                        embedVar = discord.Embed(color=0x000000, description="%s tried to spank %s. %s got spanked instead for %ss!" % (target.mention,checkmember.mention,target.mention,str(spankdur)))
+                        embedVar = discord.Embed(color=0x000000, description="%s tried to spank %s. %s got spanked instead!" % (target.mention,checkmember.mention,target.mention))
                         break
             embedVar.set_image(url=spankurl)
         
@@ -296,6 +374,9 @@ async def on_message(message):
     
     if message.content.startswith('!cunny'):
         await message.channel.send('https://cdn.discordapp.com/attachments/403019763825246209/894328456609939516/1633281014083.webm')
+    
+    if message.content.startswith('!bread'):
+        await message.channel.send('https://www.sakugabooru.com/data/a56fea265f7f85d50f5ef5e9b48c39bf.mp4')
 
     if message.content.startswith('!wholesomekiss'):
         j = oldkiss
@@ -319,7 +400,29 @@ async def on_message(message):
         if message.channel.is_nsfw():
             await message.channel.send('https://media.discordapp.net/attachments/814170813137420338/836444509415800873/ohnopoorroxy3.jpg?width=338&height=467')
         else:
-            return        
+            await message.channel.send("Cannot send in SFW channel")
+
+def comment(value):
+  if value == 69:
+    return "%. Nice!"
+  elif value < 20:
+    return "%. What a failure!"
+  elif value < 40:
+    return "%. Terrible!"
+  elif value < 60:
+    return "%. Not bad!"
+  elif value < 80:
+    return "%. Great!"
+  else:
+    return "%. Congratulation!"
+  
+def embedMatch(person1, person2, matchvalue):
+  string = "The compatibility of " + person1 + " and " + person2 + " is " + str(matchvalue) + comment(matchvalue)
+  return discord.Embed(color=0x000000, description=string)
+
+def embedShip(author,person1,person2):
+  string = author + " has shipped " + person1 + " and " + person2
+  return discord.Embed(color=0x000000, description=string)
 
 keep_alive()
 client.run(os.getenv('DISCORD_TOKEN'))
