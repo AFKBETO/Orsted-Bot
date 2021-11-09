@@ -15,9 +15,17 @@ def parse_database(string,cursor):
     if i>= len(string) or j >= len(string):
         return None, len(string)
     else:
-        tab = string[i+1:j].split(':')
+        tab = string[i+1:j].strip()
         return tab,j
 
+def parse_line(line):
+    if ':' in line:
+        k = line.find(':')
+        key = line[:k].strip()
+        val = parse_number(line[k+1:])
+        return [key,val]
+    else:
+        return None
 
 
 def parse_number(raw):

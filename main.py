@@ -91,12 +91,9 @@ async def on_ready():
     
     for i in range(len(msgDB)):
       tab,i = db.parse_database(msgDB,i)
-      
-      if tab != None:
-        tab[0] = tab[0].strip()
-        tab[0] = tab[0][1:-1]
-        tab[1] = db.parse_number(tab[1])
-        dB[tab[0]] = tab[1]
+      entry = db.parse_line(tab)
+      if entry is not None:
+        dB[entry[0]] = entry[1]
 
     string = client.user.mention + " has started another loop!"
     await eventlog.send(string)
@@ -460,12 +457,9 @@ async def on_message(message):
     if message.content.startswith('!setvalue'):
       if adminrole in message.author.roles:
         string = message.content[9:].strip()
-        print(string)
-        if ':' in string:
-          k = string.find(':')
-          entry = string[:k].strip()
-          val = db.parse_number(string[k+1:])
-          dB[entry] = val
+        entry = db.parse_line(string)
+        if entry is not None:
+          dB[entry[0]] = entry[1]
           await dbMessage.edit(content = dB)
 
 def comment(value):
