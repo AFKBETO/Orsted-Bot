@@ -461,6 +461,10 @@ async def on_message(message):
         if entry is not None:
           dB[entry[0]] = entry[1]
           await dbMessage.edit(content = dB)
+        else:
+          await eventlog.send("syntax error")
+      else:
+        await eventlog.send(f"{message.author.mention} tried to use unauthorized command")
 
 def comment(value):
   if value == 69:

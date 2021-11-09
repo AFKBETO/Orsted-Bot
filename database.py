@@ -19,12 +19,15 @@ def parse_database(string,cursor):
         return tab,j
 
 def parse_line(line):
-    if ':' in line:
-        k = line.find(':')
-        key = line[:k].strip()
-        val = parse_number(line[k+1:])
-        return [key,val]
-    else:
+    try:
+        if ':' in line:
+            k = line.find(':')
+            key = line[:k].strip()
+            val = parse_number(line[k+1:])
+            return [key,val]
+        else:
+            return None
+    except:
         return None
 
 
