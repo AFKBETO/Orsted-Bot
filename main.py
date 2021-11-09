@@ -26,11 +26,12 @@ oldkiss = 0
 kisscount = 0
 matchhash = {}
 matchcd = 86400
-msgDB = {
+testDB = {
   'abc':1,
   'def':2
 }
 
+id_guild = 814170478121713686
 id_adminrole = 814172905130557443
 id_muterole = 815600544873578526
 id_channelGeneral = 814170478566178879
@@ -53,6 +54,14 @@ async def on_ready():
     global dbMessage
     global dB
     global msgDB
+    global id_adminrole
+    global id_muterole
+    global id_channelGeneral
+    global id_channelShame
+    global id_channelDB
+    global id_messageDB
+    global id_eventlog
+    global id_guild
 
     print('We have logged in as {0.user}'.format(client))
     for emote in client.emojis:
@@ -64,6 +73,7 @@ async def on_ready():
     spankdur = defaultvalue["spankdur"]
     
     for targetguild in client.guilds:
+      if targetguild.id == id_guild:
         adminrole = targetguild.get_role(id_adminrole)
         premiumrole = targetguild.premium_subscriber_role
         muterole = targetguild.get_role(id_muterole)
@@ -71,15 +81,10 @@ async def on_ready():
         hallofshame = targetguild.get_channel(id_channelShame)
         eventlog = targetguild.get_channel(id_eventlog)
         dbChannel = targetguild.get_channel(id_channelDB)
-        dbMessage = dbChannel.fetch_message(id_messageDB)
+        dbMessage = await dbChannel.fetch_message(id_messageDB)
+        break
     
     msgDB = dbMessage.content
-    lines = [l.strip() for l in msgDB.readlines() if len(l.strip()) is not 0]
-    dB = {} 
-
-    for line in lines:
-      entry = line.split(' ', 2)
-      dB[entry[0]] = int(entry[1])
 
     string = client.user.mention + " has started another loop!"
     await general.send(string)
@@ -95,6 +100,7 @@ async def on_message(message):
     global spankdur
     global matchhash
     global matchcd
+    global testDB
 
     if message.author == client.user:
         return
@@ -432,6 +438,10 @@ async def on_message(message):
     
     if message.content.startswith('!resetdb'):
       await dbMessage.edit(content = '')
+    
+    
+    if message.content.startswith('!setdb'):
+      await dbMessage.edit(content = testDB)
 
 def comment(value):
   if value == 69:
