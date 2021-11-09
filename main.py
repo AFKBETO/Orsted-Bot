@@ -2,7 +2,7 @@ import discord
 import os
 import asyncio 
 import random
-import database
+import database as db
 from keep_alive import keep_alive
 
 
@@ -26,6 +26,9 @@ oldkiss = 0
 kisscount = 0
 matchhash = {}
 matchcd = 86400
+
+dB = {}
+
 testDB = {
   'abc':1,
   'def':2
@@ -85,6 +88,13 @@ async def on_ready():
         break
     
     msgDB = dbMessage.content
+
+    for i in range(len(msgDB)):
+      tab,i = db.parse(msgDB,i)
+      if tab != None:
+        tab[0] = tab[0][1,-1]
+        tab[1] = db.parse_number(tab[1])
+        dB[tab[0]] = tab[1]
 
     string = client.user.mention + " has started another loop!"
     await general.send(string)
@@ -437,11 +447,23 @@ async def on_message(message):
         await message.channel.send(embed=embedVar)
     
     if message.content.startswith('!resetdb'):
-      await dbMessage.edit(content = '')
+      if adminrole in message.author.roles:
+        await dbMessage.edit(content = '')
     
     
     if message.content.startswith('!setdb'):
-      await dbMessage.edit(content = testDB)
+      if adminrole in message.author.roles:
+        await dbMessage.edit(content = testDB)
+    
+    if message.content.startswith('!setvalue'):
+      if adminrole in message.author.roles:
+        string = message.content[9:].strip()
+        if ':' in string:
+          k = string.find()
+          entry = string[:k].strip()
+          val = db.parse_number(string[k+1])
+          dB[entry] = val
+          await dbMessage.edit(content = dB)
 
 def comment(value):
   if value == 69:
