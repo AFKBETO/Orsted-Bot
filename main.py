@@ -2,6 +2,7 @@ import discord
 import os
 import asyncio 
 import random
+import database
 from keep_alive import keep_alive
 
 
@@ -25,7 +26,18 @@ oldkiss = 0
 kisscount = 0
 matchhash = {}
 matchcd = 86400
+msgDB = {
+  'abc':1,
+  'def':2
+}
 
+id_adminrole = 814172905130557443
+id_muterole = 815600544873578526
+id_channelGeneral = 814170478566178879
+id_channelShame = 899259828562710578
+id_channelDB = 907628026743910491
+id_messageDB = 907628138656317450
+id_eventlog = 824175906120663060
 
 
 @client.event
@@ -35,8 +47,12 @@ async def on_ready():
     global adminrole
     global premiumrole
     global muterole
-    global spankdur
     global hallofshame
+    global eventlog
+    global dbChannel
+    global dbMessage
+    global dB
+    global msgDB
 
     print('We have logged in as {0.user}'.format(client))
     for emote in client.emojis:
@@ -48,12 +64,23 @@ async def on_ready():
     spankdur = defaultvalue["spankdur"]
     
     for targetguild in client.guilds:
-        adminrole = targetguild.get_role(814172905130557443)
+        adminrole = targetguild.get_role(id_adminrole)
         premiumrole = targetguild.premium_subscriber_role
-        muterole = targetguild.get_role(815600544873578526)
-        general = targetguild.get_channel(814170478566178879)
-        hallofshame = targetguild.get_channel(899259828562710578)
+        muterole = targetguild.get_role(id_muterole)
+        general = targetguild.get_channel(id_channelGeneral)
+        hallofshame = targetguild.get_channel(id_channelShame)
+        eventlog = targetguild.get_channel(id_eventlog)
+        dbChannel = targetguild.get_channel(id_channelDB)
+        dbMessage = dbChannel.fetch_message(id_messageDB)
     
+    msgDB = dbMessage.content
+    lines = [l.strip() for l in msgDB.readlines() if len(l.strip()) is not 0]
+    dB = {} 
+
+    for line in lines:
+      entry = line.split(' ', 2)
+      dB[entry[0]] = int(entry[1])
+
     string = client.user.mention + " has started another loop!"
     await general.send(string)
 
@@ -273,46 +300,6 @@ async def on_message(message):
         
         await message.channel.send(embed=embedVar)
 
-    if message.content.startswith('!setvar'):
-        if adminrole in message.author.roles:
-            setmessage = ""
-            if "$spankdur=" in message.content:
-                value = ""
-                k = message.content.find("$spankdur=") + 10
-                if k < len(message.content):
-                    while(message.content[k] in numerals):
-                        value = value + message.content[k]
-                        k = k + 1
-                        if k >= len(message.content):
-                            break
-                if len(value):
-                    setmessage = setmessage + "Value for spankdur has been set!\n"
-                    spankdur = int(value)
-                else:
-                    setmessage = setmessage + "Cannot find value for spankdur!\n"
-            
-            if len(setmessage):
-                embedVar = discord.Embed(color=0x000000, description=setmessage)
-            else:
-                embedVar = discord.Embed(color=0x000000, description="Nothing has been set!")
-        else:
-            embedVar = discord.Embed(color=0x000000, description="You are not authorized for this command!")
-        await message.channel.send(embed=embedVar)
-
-    if message.content.startswith('!resetvar'):
-        if adminrole in message.author.roles:
-            setmessage = ""
-            if "$spankdur" in message.content:
-                setmessage = setmessage + "Value for spankdur has been reset to default!\n"
-                spankdur = defaultvalue["spankdur"]
-            if len(setmessage):
-                embedVar = discord.Embed(color=0x000000, description=setmessage)
-            else:
-                embedVar = discord.Embed(color=0x000000, description="Nothing has been reset!")
-        else:
-            embedVar = discord.Embed(color=0x000000, description="You are not authorized for this command!")
-        await message.channel.send(embed=embedVar)
-
     if message.content.startswith('!donut'):
         if random.randrange(10):
             if message.author.guild_permissions.kick_members:
@@ -402,6 +389,50 @@ async def on_message(message):
         else:
             await message.channel.send("Cannot send in SFW channel")
 
+
+    if message.content.startswith('!setvar'):
+        if adminrole in message.author.roles:
+            setmessage = ""
+            if "$spankdur=" in message.content:
+                value = ""
+                k = message.content.find("$spankdur=") + 10
+                if k < len(message.content):
+                    while(message.content[k] in numerals):
+                        value = value + message.content[k]
+                        k = k + 1
+                        if k >= len(message.content):
+                            break
+                if len(value):
+                    setmessage = setmessage + "Value for spankdur has been set!\n"
+                    spankdur = int(value)
+                else:
+                    setmessage = setmessage + "Cannot find value for spankdur!\n"
+            
+            if len(setmessage):
+                embedVar = discord.Embed(color=0x000000, description=setmessage)
+            else:
+                embedVar = discord.Embed(color=0x000000, description="Nothing has been set!")
+        else:
+            embedVar = discord.Embed(color=0x000000, description="You are not authorized for this command!")
+        await message.channel.send(embed=embedVar)
+
+    if message.content.startswith('!resetvar'):
+        if adminrole in message.author.roles:
+            setmessage = ""
+            if "$spankdur" in message.content:
+                setmessage = setmessage + "Value for spankdur has been reset to default!\n"
+                spankdur = defaultvalue["spankdur"]
+            if len(setmessage):
+                embedVar = discord.Embed(color=0x000000, description=setmessage)
+            else:
+                embedVar = discord.Embed(color=0x000000, description="Nothing has been reset!")
+        else:
+            embedVar = discord.Embed(color=0x000000, description="You are not authorized for this command!")
+        await message.channel.send(embed=embedVar)
+    
+    if message.content.startswith('!resetdb'):
+      await dbMessage.edit(content = '')
+
 def comment(value):
   if value == 69:
     return "%. Nice!"
@@ -423,6 +454,8 @@ def embedMatch(person1, person2, matchvalue):
 def embedShip(author,person1,person2):
   string = author + " has shipped " + person1 + " and " + person2
   return discord.Embed(color=0x000000, description=string)
+
+
 
 keep_alive()
 client.run(os.getenv('DISCORD_TOKEN'))
