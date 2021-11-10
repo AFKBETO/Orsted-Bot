@@ -42,6 +42,7 @@ id_channelShame = 899259828562710578
 id_channelDB = 907628026743910491
 id_messageDB = 907628138656317450
 id_eventlog = 824175906120663060
+id_channelLooper = 908073828557672588
 
 
 @client.event
@@ -65,6 +66,8 @@ async def on_ready():
     global id_messageDB
     global id_eventlog
     global id_guild
+    global id_channelLooper
+    
 
     print('We have logged in as {0.user}'.format(client))
     for emote in client.emojis:
@@ -84,6 +87,7 @@ async def on_ready():
         hallofshame = targetguild.get_channel(id_channelShame)
         eventlog = targetguild.get_channel(id_eventlog)
         dbChannel = targetguild.get_channel(id_channelDB)
+        channelLooper = targetguild.get_channel(id_channelLooper)
         dbMessage = await dbChannel.fetch_message(id_messageDB)
         break
     
@@ -96,7 +100,7 @@ async def on_ready():
         dB[entry[0]] = entry[1]
 
     string = client.user.mention + " has started another loop!"
-    await eventlog.send(string)
+    await channelLooper.send(string)
 
 @client.event
 async def on_message(message):
