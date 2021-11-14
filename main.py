@@ -43,6 +43,8 @@ id_channelDB = 907628026743910491
 id_messageDB = 907628138656317450
 id_eventlog = 824175906120663060
 id_channelLooper = 908073828557672588
+id_channelotherhot = 814172539290648636
+id_trashbin = 909426261204533328
 
 
 @client.event
@@ -55,6 +57,7 @@ async def on_ready():
     global hallofshame
     global eventlog
     global dbChannel
+    global otherhotsauceChannel
     global dbMessage
     global dB
     global msgDB
@@ -67,6 +70,9 @@ async def on_ready():
     global id_eventlog
     global id_guild
     global id_channelLooper
+    global id_channelotherhot
+    global general
+    global trashbin
     
 
     print('We have logged in as {0.user}'.format(client))
@@ -88,6 +94,8 @@ async def on_ready():
         eventlog = targetguild.get_channel(id_eventlog)
         dbChannel = targetguild.get_channel(id_channelDB)
         channelLooper = targetguild.get_channel(id_channelLooper)
+        otherhotsauceChannel = targetguild.get_channel(id_channelotherhot)
+        trashbin = targetguild.get_channel(id_trashbin)
         dbMessage = await dbChannel.fetch_message(id_messageDB)
         break
     
@@ -123,6 +131,18 @@ async def on_message(message):
 
     if message.content.startswith('!help'):
       await message.channel.send("List of commands: \n**!ship @mention**: Ship somebody with a random character.\n**!ship @mention (multiple)**: Ship multiple members. \n**!match @mention**: Find compatibility of a member with a random character.\n**!match @mention @mention**: Find compatibility between two members. \n**!apostle @mention**: Somebody is a Hitogami's apostle! \n**!spank @mention**: Try to spank a member!\n**!shame post_id**: Put a post in #hall-of-shame! \n\nGif commands: \n**!holyemotes**: Post the holy emotes \n**!axa**: Post the AxA gif \n**!cunny**: Give me your body! \n**!bread**: Breadgasm! \n**!wholesomekiss**: Post a wholesome kiss \n**!roxynom**: Feed Roxy! \n**!lewdroxy**: God is feeling horny today \n**!iloveyou**: God will confess her love! \n\nModerators only: \n**!donut @mention**: Call Papa Orsted to donut somebody.")
+    
+    if message.content.startswith('!magicno '):
+      magicnumber = parse_number(message.content[9:])
+      
+      if (magicnumber is None):
+        await otherhotsauceChannel.send(content="Magic number not found!", delete_after = 15)
+      else:
+        magicMessage = await otherhotsauceChannel.send(content=f"https://nhentai.net/g/{magicnumber}/")
+        embedVar = discord.Embed(color=0xFF0000, description=magicMessage.content)
+        embedVar.set_author(name=message.author.display_name,icon_url=message.author.avatar_url,)
+        await eventlog.send(embed=embedVar)
+      await message.delete()
 
     if message.content.startswith('!shame '):
       id = int(message.content[7:])
@@ -399,6 +419,21 @@ async def on_message(message):
         oldkiss = j
         await message.channel.send(wholesomekiss[j])
     
+    if message.content.startswith('!prune '):
+        if message.author.guild_permissions.manage_messages:
+          amount = parse_number(message.content[7:])
+          if amount is None:
+              general.send(content="Please specify the amount to purge", delete_after = 15)
+          else:
+              listmsg = await message.channel.purge(limit=amount)
+              if len(listmsg) > 1:
+                for msg in listmsg[1:]:
+                  content = f"message: '{msg.content}' was deleted in **#{msg.channel}**"
+                  embedVar = discord.Embed(color=0x000000, description=content)
+                  embedVar.set_author(name=msg.author.display_name,icon_url=msg.author.avatar_url,)
+                  await trashbin.send(embed = embedVar)
+
+    
     if message.content.startswith('!roxynom'):
         await message.channel.send('https://media.discordapp.net/attachments/814309698295562240/838067728711024700/8f68c86.gif')
     
@@ -470,6 +505,24 @@ async def on_message(message):
       else:
         await eventlog.send(f"{message.author.mention} tried to use unauthorized command")
 
+@client.event
+async def on_message_delete(message):
+  if message is None:
+    return
+  if message.guild is None:
+    return
+  msg = f"message: '{message.content}' was deleted in **#{message.channel}**"
+  embedVar = discord.Embed(color=0x000000, description=msg)
+  embedVar.set_author(name=message.author.display_name,icon_url=message.author.avatar_url,)
+  await trashbin.send(embed = embedVar)
+
+@client.event
+async def on_message_edit(before, after):
+  content = "**Before:**\n" + before.content + "\n" + f"**[After]({after.jump_url}):**\n" + after.content
+  embedVar = discord.Embed(color=0x000000, description=content)
+  embedVar.set_author(name=before.author.display_name,icon_url=before.author.avatar_url,)
+  await trashbin.send(embed = embedVar)
+
 def comment(value):
   if value == 69:
     return "%. Nice!"
@@ -492,7 +545,11 @@ def embedShip(author,person1,person2):
   string = author + " has shipped " + person1 + " and " + person2
   return discord.Embed(color=0x000000, description=string)
 
-
+def parse_number(value):
+  try:
+    return int(value)
+  except:
+    return None
 
 keep_alive()
 client.run(os.getenv('DISCORD_TOKEN'))
