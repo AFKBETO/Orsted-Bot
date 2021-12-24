@@ -3,14 +3,23 @@ import os
 import asyncio 
 import random
 import database as db
+import time
+import json
 from keep_alive import keep_alive
+from datetime import datetime, timedelta
+from database import User
+from dataclasses import asdict
+from dacite import from_dict, Config
 
+t1 = datetime(year=2021,month=11,day=14,hour=16)
 
 defaultvalue = {
   "spankdur":5
 }
-numerals = "0123456789"
-client = discord.Client()
+NUMERALS = "0123456789"
+intents = discord.Intents.default()
+intents.members = True
+client = discord.Client(intents = intents)
 
 randspank = ["https://c.tenor.com/4RIbgFCLRrUAAAAC/rikka-takanashi-bad-girl.gif", "https://c.tenor.com/WNnO4lxUMVQAAAAC/anime-school-girl.gif", "https://c.tenor.com/5ropePOLZV4AAAAC/bad-beat.gif", "https://c.tenor.com/gScnebhgJn4AAAAC/taritari-anime-spank.gif"]
 oldspank = ""
@@ -24,27 +33,40 @@ namecount = 0
 wholesomekiss = ["https://media.discordapp.net/attachments/824175906120663060/843483983080849418/E0ndCMxVoAAeSy3.png?width=804&height=504","https://media.discordapp.net/attachments/824175906120663060/843465128644313108/20210511_104844.png?width=952&height=504"]
 oldkiss = 0
 kisscount = 0
-matchhash = {}
-matchcd = 86400
-
-dB = {}
+CD_MATCH = 86400
 
 testDB = {
-  'abc':1,
-  'def':2
+  "abc":1,
+  "def":2
 }
 
-id_guild = 814170478121713686
-id_adminrole = 814172905130557443
-id_muterole = 815600544873578526
-id_channelGeneral = 814170478566178879
-id_channelShame = 899259828562710578
-id_channelDB = 907628026743910491
-id_messageDB = 907628138656317450
-id_eventlog = 824175906120663060
-id_channelLooper = 908073828557672588
-id_channelotherhot = 814172539290648636
-id_trashbin = 909426261204533328
+ID_GUILD = 814170478121713686
+ID_ROLE_ADMIN = 814172905130557443
+ID_ROLE_MUTE = 815600544873578526
+ID_CHANNEL_GENERAL = 814170478566178879
+ID_CHANNEL_SHAME = 899259828562710578
+ID_CHANNEL_DATABASE = 907628026743910491
+ID_CHANNEL_EVENTLOG = 824175906120663060
+ID_CHANNEL_LOOPER = 908073828557672588
+ID_CHANNEL_OTHER_HOT = 814172539290648636
+ID_CHANNEL_TRASHBIN = 909426261204533328
+ID_MSG_TIME = 922600361884270704
+ID_ROLE_BOT = 824177027581739060
+ID_CHANNELS_SAUCE = [814170813137420338,819067415245357107,814172539290648636,814309698295562240]
+ID_CHANNEL_ART = 824153054022205460
+ID_CHANNELS_CAH = [919591734495825921,919593810034589706]
+
+USEREXP_PATH = "userexp.json"
+MATCH_PATH = "match.json"
+EXP_LOG_PATH = "explog.json"
+members = dict()
+memberdict = dict()
+
+with open('CAH_question.txt', 'r') as f:
+    questions = [line.strip() for line in f]
+
+with open('CAH_answer.txt', 'r') as f:
+    answers = [line.strip() for line in f]
 
 
 @client.event
@@ -59,23 +81,28 @@ async def on_ready():
     global dbChannel
     global otherhotsauceChannel
     global dbMessage
-    global dB
-    global msgDB
-    global id_adminrole
-    global id_muterole
-    global id_channelGeneral
-    global id_channelShame
-    global id_channelDB
-    global id_messageDB
-    global id_eventlog
-    global id_guild
-    global id_channelLooper
-    global id_channelotherhot
+    global ID_ROLE_ADMIN
+    global ID_ROLE_MUTE
+    global ID_CHANNEL_GENERAL
+    global ID_CHANNEL_SHAME
+    global ID_CHANNEL_DATABASE
+    global ID_CHANNEL_EVENTLOG
+    global ID_GUILD
+    global ID_CHANNEL_LOOPER
+    global ID_CHANNEL_OTHER_HOT
     global general
     global trashbin
-    
+    global ID_MSG_TIME
+    global weekMessage
+    global weeks
+    global t1
+    global memberdict
+    global members
+    global matchhash
 
-    print('We have logged in as {0.user}'.format(client))
+    start = time.perf_counter()
+    random.seed()
+
     for emote in client.emojis:
         if emote.name == "KissRoxy":
             kroxy = emote
@@ -84,30 +111,65 @@ async def on_ready():
     
     spankdur = defaultvalue["spankdur"]
     
-    for targetguild in client.guilds:
-      if targetguild.id == id_guild:
-        adminrole = targetguild.get_role(id_adminrole)
-        premiumrole = targetguild.premium_subscriber_role
-        muterole = targetguild.get_role(id_muterole)
-        general = targetguild.get_channel(id_channelGeneral)
-        hallofshame = targetguild.get_channel(id_channelShame)
-        eventlog = targetguild.get_channel(id_eventlog)
-        dbChannel = targetguild.get_channel(id_channelDB)
-        channelLooper = targetguild.get_channel(id_channelLooper)
-        otherhotsauceChannel = targetguild.get_channel(id_channelotherhot)
-        trashbin = targetguild.get_channel(id_trashbin)
-        dbMessage = await dbChannel.fetch_message(id_messageDB)
-        break
+    targetguild = client.get_guild(ID_GUILD)
+    adminrole = targetguild.get_role(ID_ROLE_ADMIN)
+    premiumrole = targetguild.premium_subscriber_role
+    muterole = targetguild.get_role(ID_ROLE_MUTE)
+    general = targetguild.get_channel(ID_CHANNEL_GENERAL)
+    hallofshame = targetguild.get_channel(ID_CHANNEL_SHAME)
+    eventlog = targetguild.get_channel(ID_CHANNEL_EVENTLOG)
+    dbChannel = targetguild.get_channel(ID_CHANNEL_DATABASE)
+    channelLooper = targetguild.get_channel(ID_CHANNEL_LOOPER)
+    otherhotsauceChannel = targetguild.get_channel(ID_CHANNEL_OTHER_HOT)
+    trashbin = targetguild.get_channel(ID_CHANNEL_TRASHBIN)
+    weekMessage = await dbChannel.fetch_message(ID_MSG_TIME)
     
-    msgDB = dbMessage.content
-    
-    for i in range(len(msgDB)):
-      tab,i = db.parse_database(msgDB,i)
-      entry = db.parse_line(tab)
-      if entry is not None:
-        dB[entry[0]] = entry[1]
+    # read member exp
+    with open(USEREXP_PATH,"r") as f:
+      try:
+        memberdict = json.loads(f.read())
+      except:
+        memberdict = None
+    if memberdict:
+      for id in memberdict:
+        members[id] = from_dict(data_class=User,data=memberdict[id],config=Config(check_types=False))
+    else:
+      memberdict = dict()
+      async for unit in targetguild.fetch_members():
+        members[unit.id] = User(unit.id)
+        data = asdict(members[unit.id])
+        data.pop("last_message")
+        data.pop("last_gain")
+        memberdict[unit.id] = data
+      with open(USEREXP_PATH, "w") as f:
+        f.write(json.dumps(memberdict))
 
+    # read match
+    with open(MATCH_PATH, "r") as f:
+      try:
+        matchhash = json.loads(f.read())
+      except:
+        matchhash = {}
+    
+    # read week time
+    weeks = weekMessage.content
+    weeks = parse_number(weeks)
+    if weeks is None:
+      weeks = 0
+    if (weeks < 6):
+      t1 = t1 + timedelta(weeks=weeks)
+      t2 = datetime.utcnow()
+      delta = t1 - t2
+      while(delta.days <0 or delta.seconds < 0 or delta.microseconds < 0):
+        weeks = weeks + 1
+        t1 = t1 + timedelta(weeks=1)
+        delta = t1 - t2
+      
+      await weekMessage.edit(content = weeks)
+
+    end = time.perf_counter()
     string = client.user.mention + " has started another loop!"
+    print('We have logged in as {0.user}, the process took '.format(client)+ f'{end-start} seconds!')
     await channelLooper.send(string)
 
 @client.event
@@ -122,15 +184,190 @@ async def on_message(message):
     global matchhash
     global matchcd
     global testDB
+    global weeks
+    global t1
+    global answers
+    global questions
+    global ID_ROLE_BOT
+    cah_multiplier = 1.3
+    sauce_multiplier = 1.5
+    art_multiplier = 2
 
     if message.author == client.user:
         return
+
+    if message.guild.get_role(ID_ROLE_BOT) in message.author.roles:
+        return
     
+    if message.content.startswith('!exp'):
+        if message.channel.id != 922829958999597157:
+            return
+        target = message.author
+        if message.mentions:
+          target = message.mentions[0]
+        with open(EXP_LOG_PATH,"a") as f:
+          f.write(f"{datetime.utcnow()}: {message.author.name} requests exp of {target.name}\n")
+        for i,data in enumerate(sorted(members.items(), key=lambda m:m[1].exp, reverse=True)):
+          if data[0] == str(target.id):
+            member = data[1]
+            await message.channel.send(f"{target.name}'s EXP is {member.exp}, at {str(i+1)}{add_suffix(i)} place.")
+            return
+        return
+
+    if message.content.startswith('!lb'):
+        if message.channel.id != 922829958999597157:
+            return
+        string = ""
+        for i, data in enumerate(sorted(members.items(), key=lambda m:m[1].exp, reverse=True)):
+            if i > 9:
+                break
+            member = data[1]
+            user = message.guild.get_member(int(data[0]))
+            if user:
+                string += f"{str(i+1)}{add_suffix(i)} place: {user.name} - {member.exp} exp\n"
+        await message.channel.send(string)
+        return
+
+    if message.content.startswith('!resetlb'):
+      if adminrole in message.author.roles:
+        for id in members:
+            members[id].reset_exp()
+            write_exp_data(int(id))
+        return
+
+    if message.content.startswith('!penalty'):
+        if message.mentions:
+            s = "List of member got mudded:\n"
+            for mention in message.mentions:
+                members[str(mention.id)].penalty()
+                write_exp_data(mention.id)
+                s += f"{mention.mention}\n"
+        else:
+            s = "No member specified!"
+        embedVar = discord.Embed(color=0xFF0000, description=s)
+        await message.channel.send(embed=embedVar)
+        return
+    
+    # check if member exists already (just in case)
+    try:
+      member = members[str(message.author.id)]
+    except:
+      members[str(message.author.id)] = User(str(message.author.id))
+      data = asdict(members[str(message.author.id)])
+      data.pop("last_message")
+      data.pop("last_gain")
+      memberdict[str(message.author.id)] = data
+      member = members[str(message.author.id)]
+    
+    # exp calculation
+    current_time = datetime.utcnow() - member.last_message
+    posting_sauce = False
+    if(timedelta(seconds=member.last_gain+10)<current_time or ((message.channel.id in ID_CHANNELS_CAH or message.channel.id in ID_CHANNELS_SAUCE or message.channel.id == ID_CHANNEL_SHAME or message.channel.id == ID_CHANNEL_ART)) and (message.attachments or message.embeds)):
+        exp_gain = 0
+        exp_multiplier = 1
+        if message.channel.id in ID_CHANNELS_CAH:
+          exp_multiplier = cah_multiplier
+          exp_gain += exp_multiplier * random.randrange(5,13)
+        elif message.attachments:
+          if message.channel.id in ID_CHANNELS_SAUCE:
+            posting_sauce = True
+            exp_multiplier = sauce_multiplier
+            for i in message.attachments:
+              exp_gain += random.randrange(5,13) * exp_multiplier
+          elif message.channel.id == ID_CHANNEL_SHAME:
+            posting_sauce = True
+            exp_multiplier = sauce_multiplier
+            for i in message.attachments:
+              exp_gain += random.randrange(5,13) * exp_multiplier
+          elif message.channel.id == ID_CHANNEL_ART:
+            exp_multiplier = art_multiplier
+            for i in message.attachments:
+              exp_gain += random.randrange(5,13) * exp_multiplier
+        elif message.embeds:
+          if message.channel.id in ID_CHANNELS_SAUCE:
+            posting_sauce = True
+            exp_multiplier = sauce_multiplier
+            for i in message.embeds:
+              exp_gain += exp_multiplier * random.randrange(5,13)
+          elif message.channel.id == ID_CHANNEL_ART:
+            posting_sauce = True
+            exp_multiplier = art_multiplier
+            for i in message.embeds:
+              exp_gain += exp_multiplier * random.randrange(5,13)
+        else:
+          exp_gain = random.randrange(5,13)
+        member.add_exp(exp_gain)
+        if posting_sauce:
+          member.last_gain = 0
+        member.set_last_message()
+        write_exp_data(message.author.id)
+        with open(EXP_LOG_PATH,"r+") as f:
+          content = f.read()
+          if(len(content)>5000):
+            check_index = 1
+            while(os.path.exists(f"explog{check_index}.json")):
+              check_index += 1
+            with open(f"explog{check_index}.json","x") as copy:
+              copy.write(content)
+            f.truncate(0)
+        with open(EXP_LOG_PATH,"a") as f:
+          f.write(f"{member.last_message}: {member.id == message.author.id} {message.author.name} - {exp_gain}exp{add_exp_multiplier(exp_multiplier)}\n")
+
+
+    if message.content.startswith('!prune '):
+        if message.author.guild_permissions.manage_messages:
+          amount = parse_number(message.content[7:])
+          if amount is None:
+              general.send(content="Please specify the amount to purge", delete_after = 15)
+          else:
+              listmsg = await message.channel.purge(limit=amount)
+              if len(listmsg) > 1:
+                for msg in listmsg[1:]:
+                  content = f"message: '{msg.content}' was deleted in **#{msg.channel}**"
+                  embedVar = discord.Embed(color=0x000000, description=content)
+                  embedVar.set_author(name=msg.author.display_name,icon_url=msg.author.avatar_url,)
+                  await trashbin.send(embed = embedVar)
+        return
+
     if message.channel.id == 899259828562710578:
+        return
+
+    if message.content.startswith('!cah') or message.content.startswith('!cardsagainsthumanity'):
+        s = random.choice(questions)
+        list_answers = []
+        if "_" in s:
+          a = random.choice(answers)
+          while("_" in s):
+            while (a in list_answers):
+              a = random.choice(answers)
+            list_answers.append(a)
+            s = s.replace('_', a[:-1], 1)
+        else:
+          s = s + "\n" + random.choice(answers)
+        s = s.replace("\\n","\n")
+        embedVar = discord.Embed(color=0xFF0000, description=s)
+        await message.channel.send(embed=embedVar)
+        return
+
+    if message.content.startswith('!mttime'):
+      print(datetime.utcnow())
+      t2 = t1 - datetime.utcnow()
+      while(t2.days <0 or t2.seconds < 0 or t2.microseconds < 0):
+        weeks = weeks + 1
+        t1 = t1 + timedelta(weeks=1)
+        t2 = t1 - datetime.utcnow()
+
+      if(weeks < 6):
+        delta = datetime(1,1,1) + t2
+        await weekMessage.edit(content = weeks)
+        await message.channel.send(f"Episode {18+weeks} of Mushoku Tensei in " + (f"{delta.day-1} day{'s' if (delta.day-1)>=2 else ''}, " if (delta.day>1) else "") + (f"{delta.hour} hour{'s' if (delta.hour-1)>=2 else ''}, " if (delta.hour>0) else "") + (f"{delta.minute} minute{'s' if (delta.minute-1)>=2 else ''}, " if (delta.minute>0) else "") + f"{delta.second} second{'s' if (delta.second-1)>=2 else ''}.")
+      else:
+        await message.channel.send(f"Season 1 of Mushoku Tensei has ended.")
       return
 
     if message.content.startswith('!help'):
       await message.channel.send("List of commands: \n**!ship @mention**: Ship somebody with a random character.\n**!ship @mention (multiple)**: Ship multiple members. \n**!match @mention**: Find compatibility of a member with a random character.\n**!match @mention @mention**: Find compatibility between two members. \n**!apostle @mention**: Somebody is a Hitogami's apostle! \n**!spank @mention**: Try to spank a member!\n**!shame post_id**: Put a post in #hall-of-shame! \n\nGif commands: \n**!holyemotes**: Post the holy emotes \n**!axa**: Post the AxA gif \n**!cunny**: Give me your body! \n**!bread**: Breadgasm! \n**!wholesomekiss**: Post a wholesome kiss \n**!roxynom**: Feed Roxy! \n**!lewdroxy**: God is feeling horny today \n**!iloveyou**: God will confess her love! \n\nModerators only: \n**!donut @mention**: Call Papa Orsted to donut somebody.")
+      return
     
     if message.content.startswith('!magicno '):
       magicnumber = parse_number(message.content[9:])
@@ -143,6 +380,7 @@ async def on_message(message):
         embedVar.set_author(name=message.author.display_name,icon_url=message.author.avatar_url,)
         await eventlog.send(embed=embedVar)
       await message.delete()
+      return
 
     if message.content.startswith('!shame '):
       id = int(message.content[7:])
@@ -151,20 +389,19 @@ async def on_message(message):
       embedVar = discord.Embed(color=0xFF0000, description=targetContent)
       embedVar.set_author(name=targetMessage.author.display_name,icon_url=targetMessage.author.avatar_url,)
       await hallofshame.send(embed=embedVar)
-
+      return
 
     if message.content.startswith('!ship'):
         if len(message.mentions):
             j = random.randrange(10)
             if j:
               j = 1
-            i = random.randrange(len(randname[j]))
             if client.user in message.mentions:
               member = message.author
-              embedVar = discord.Embed(color=0x000000, description=f"{client.user.mention} has shipped {member.mention} with {randname[j][i]} for trying to ship Orsted!")
+              embedVar = discord.Embed(color=0x000000, description=f"{client.user.mention} has shipped {member.mention} with {random.choice(randname[j])} for trying to ship Orsted!")
             elif len(message.mentions) == 1:
               member = message.mentions[0]
-              embedVar = embedShip(message.author.mention,member.mention,randname[j][i])
+              embedVar = embedShip(message.author.mention,member.mention,random.choice(randname[j]))
             elif len(message.mentions) == 2:
               member1 = message.mentions[0]
               member2 = message.mentions[1]
@@ -180,51 +417,25 @@ async def on_message(message):
         else:
             embedVar = discord.Embed(color=0x000000, description="%s has shipped no one, the ship has sunk" % (message.author.mention))
         await message.channel.send(embed=embedVar)
+        return
 
     if message.content.startswith('!match'):
         if len(message.mentions):
-            j = random.randrange(10)
-            compatibility = random.randrange(100)
-            if j:
-              j = 1
-            i = random.randrange(len(randname[j]))
-            while randname[j][i] == "Orsted":
-              i = random.randrange(len(randname[j]))
-            if len(message.mentions) == 1:
+            if len(message.mentions) == 1: # check if matching with a random character
+              # get random gender (10% to get female)
+              j = random.randrange(10)
+              if j:
+                j = 1
+              # get random name
+              name = random.choice(randname[j])
+              # reroll if hitting Orsted
+              while name == "Orsted":
+                name = random.choice(randname[j])
               member = message.mentions[0]
-              couple = member.mention + randname[j][i]
-              if(couple in matchhash):
-                compatibility = matchhash[couple]
-                embedVar = embedMatch(member.mention, randname[j][i],compatibility)
-                await message.channel.send(embed=embedVar)
-              else:
-                embedVar = embedMatch(member.mention, randname[j][i],compatibility)
-                await message.channel.send(embed=embedVar)
-                matchhash[couple] = compatibility
-
-                await asyncio.sleep(matchcd)
-                matchhash.pop(couple)
-            elif len(message.mentions) == 2:
-              member1 = message.mentions[0]
-              member2 = message.mentions[1]
-              couple1 = member1.mention + member2.mention
-              couple2 = member2.mention + member1.mention
-              if(couple1 in matchhash):
-                compatibility = matchhash[couple1]
-                embedVar = embedMatch(member1.mention, member2.mention,compatibility)
-                await message.channel.send(embed=embedVar)
-              elif (couple2 in matchhash):
-                compatibility = matchhash[couple2]
-                embedVar = embedMatch(member1.mention, member2.mention,compatibility)
-                await message.channel.send(embed=embedVar)
-              else:
-                embedVar = embedMatch(member1.mention, member2.mention,compatibility)
-                await message.channel.send(embed=embedVar)
-                matchhash[couple1] = compatibility
-
-                await asyncio.sleep(matchcd)
-                matchhash.pop(couple1)
-            else:
+              await send_match(message.channel,member.mention,name)
+            elif len(message.mentions) == 2: # check if there are 2 mentions
+              await send_match(message.channel,message.mentions[0].mention,message.mentions[1].mention)
+            else: # case matching more than 2
               string = message.author.mention + " has tried to match "
               for i in range(len(message.mentions)-1):
                 member = message.mentions[i]
@@ -236,12 +447,12 @@ async def on_message(message):
         else:
             embedVar = discord.Embed(color=0x000000, description="%s has matched no one." % (message.author.mention))
             await message.channel.send(embed=embedVar)
+        return
 
     if message.content.startswith('!spank'):
         spankurl = oldspank
         while spankurl == oldspank:
-            i = random.randrange(len(randspank))
-            spankurl = randspank[i]
+            spankurl = random.choice(randspank)
             if (spankurl == oldspank):
                 if spankcount < 2:
                     spankcount = spankcount + 1
@@ -265,7 +476,7 @@ async def on_message(message):
                 else:
                   k = len(messagecontent)
                 while k < len(messagecontent):
-                  if messagecontent[k] in numerals:
+                  if messagecontent[k] in NUMERALS:
                     duree = duree + str(messagecontent[k])
                   else:
                     if len(duree):
@@ -338,6 +549,7 @@ async def on_message(message):
             embedVar.set_image(url=spankurl)
         
         await message.channel.send(embed=embedVar)
+        return
 
     if message.content.startswith('!donut'):
         if random.randrange(10):
@@ -355,6 +567,7 @@ async def on_message(message):
                 await member.remove_roles(muterole)
                 embedVar = discord.Embed(color=0x000000, description="%s has revived!" % member.mention)
                 await message.channel.send(embed=embedVar)
+                return
             else:
                 member = message.author
                 await member.add_roles(muterole)
@@ -365,6 +578,7 @@ async def on_message(message):
                 await member.remove_roles(muterole)
                 embedVar = discord.Embed(color=0x000000, description="%s has revived!" % member.mention)
                 await message.channel.send(embed=embedVar) 
+                return
         else:
             await message.channel.send('https://media.discordapp.net/attachments/814170478566178879/832430180676272148/latest.png?width=352&height=503')
             return
@@ -378,8 +592,8 @@ async def on_message(message):
           embedVar = discord.Embed(color=0x000000, description=string)
         else:
           embedVar = discord.Embed(color=0x000000, description="List is empty.")
-        await message.channel.send(embed=embedVar)          
-
+        await message.channel.send(embed=embedVar)       
+        return   
 
     if message.content.startswith('!apostle'):
         if len(message.mentions):
@@ -388,21 +602,27 @@ async def on_message(message):
         else:
             embedVar = discord.Embed(color=0x000000, description="Are you joking with me?")
         await message.channel.send(embed=embedVar)
+        return
     
     if message.content.startswith('!holyemotes'):
         await message.channel.send(str(kroxy) + str(ksilp))
+        return
     
     if message.content.startswith('!iloveyou'):
         await message.channel.send('https://media.discordapp.net/attachments/824175906120663060/847311210730487848/IMG_20210521_070902.png?width=960&height=408')
+        return
 
     if message.content.startswith('!axa'):
         await message.channel.send('https://images-ext-2.discordapp.net/external/aZqy-7bn2Kjl2QeIEsF_wmXC-ZLlTVDz3R-a_BXcX-Q/https/media.discordapp.net/attachments/558540706302394368/817231396484677673/Comp_1_1.gif?width=894&height=503')
+        return
     
     if message.content.startswith('!cunny'):
         await message.channel.send('https://cdn.discordapp.com/attachments/403019763825246209/894328456609939516/1633281014083.webm')
+        return
     
     if message.content.startswith('!bread'):
         await message.channel.send('https://www.sakugabooru.com/data/a56fea265f7f85d50f5ef5e9b48c39bf.mp4')
+        return
 
     if message.content.startswith('!wholesomekiss'):
         j = oldkiss
@@ -418,92 +638,68 @@ async def on_message(message):
                 kisscount = 0
         oldkiss = j
         await message.channel.send(wholesomekiss[j])
-    
-    if message.content.startswith('!prune '):
-        if message.author.guild_permissions.manage_messages:
-          amount = parse_number(message.content[7:])
-          if amount is None:
-              general.send(content="Please specify the amount to purge", delete_after = 15)
-          else:
-              listmsg = await message.channel.purge(limit=amount)
-              if len(listmsg) > 1:
-                for msg in listmsg[1:]:
-                  content = f"message: '{msg.content}' was deleted in **#{msg.channel}**"
-                  embedVar = discord.Embed(color=0x000000, description=content)
-                  embedVar.set_author(name=msg.author.display_name,icon_url=msg.author.avatar_url,)
-                  await trashbin.send(embed = embedVar)
-
+        return
     
     if message.content.startswith('!roxynom'):
         await message.channel.send('https://media.discordapp.net/attachments/814309698295562240/838067728711024700/8f68c86.gif')
+        return
     
     if message.content.startswith('!lewdroxy'):
         if message.channel.is_nsfw():
             await message.channel.send('https://media.discordapp.net/attachments/814170813137420338/836444509415800873/ohnopoorroxy3.jpg?width=338&height=467')
+            return
         else:
             await message.channel.send("Cannot send in SFW channel")
+            return
 
-
-    if message.content.startswith('!setvar'):
-        if adminrole in message.author.roles:
-            setmessage = ""
-            if "$spankdur=" in message.content:
-                value = ""
-                k = message.content.find("$spankdur=") + 10
-                if k < len(message.content):
-                    while(message.content[k] in numerals):
-                        value = value + message.content[k]
-                        k = k + 1
-                        if k >= len(message.content):
-                            break
-                if len(value):
-                    setmessage = setmessage + "Value for spankdur has been set!\n"
-                    spankdur = int(value)
-                else:
-                    setmessage = setmessage + "Cannot find value for spankdur!\n"
-            
-            if len(setmessage):
-                embedVar = discord.Embed(color=0x000000, description=setmessage)
-            else:
-                embedVar = discord.Embed(color=0x000000, description="Nothing has been set!")
-        else:
-            embedVar = discord.Embed(color=0x000000, description="You are not authorized for this command!")
-        await message.channel.send(embed=embedVar)
-
-    if message.content.startswith('!resetvar'):
-        if adminrole in message.author.roles:
-            setmessage = ""
-            if "$spankdur" in message.content:
-                setmessage = setmessage + "Value for spankdur has been reset to default!\n"
-                spankdur = defaultvalue["spankdur"]
-            if len(setmessage):
-                embedVar = discord.Embed(color=0x000000, description=setmessage)
-            else:
-                embedVar = discord.Embed(color=0x000000, description="Nothing has been reset!")
-        else:
-            embedVar = discord.Embed(color=0x000000, description="You are not authorized for this command!")
-        await message.channel.send(embed=embedVar)
-    
     if message.content.startswith('!resetdb'):
       if adminrole in message.author.roles:
         await dbMessage.edit(content = '')
-    
+        return
     
     if message.content.startswith('!setdb'):
       if adminrole in message.author.roles:
-        await dbMessage.edit(content = testDB)        
+        await dbMessage.edit(content = json.dumps(testDB))
+        return
     
+    if message.content.startswith('!setweek '):
+      if adminrole in message.author.roles:
+        await weekMessage.edit(content = parse_number(message.content[9:]))
+        return
+    
+    if message.content.startswith('!week++'):
+      if adminrole in message.author.roles:
+        await weekMessage.edit(content = parse_number(weekMessage.content)+1)
+        return
+
     if message.content.startswith('!setvalue'):
       if adminrole in message.author.roles:
+        dB = json.loads(dbMessage.content)
         string = message.content[9:].strip()
         entry = db.parse_line(string)
         if entry is not None:
           dB[entry[0]] = entry[1]
-          await dbMessage.edit(content = dB)
+          await dbMessage.edit(content = json.dumps(dB))
         else:
           await eventlog.send("syntax error")
       else:
         await eventlog.send(f"{message.author.mention} tried to use unauthorized command")
+      return
+
+    if message.content.startswith('!deletevalue'):
+      if adminrole in message.author.roles:
+        dB = json.loads(dbMessage.content)
+        string = message.content[12:].strip()
+        if string is not None:
+          if (dB.pop(string)):
+            await dbMessage.edit(content = json.dumps(dB))
+          else:
+            await eventlog.send("can't find value")
+        else:
+          await eventlog.send("syntax error")
+      else:
+        await eventlog.send(f"{message.author.mention} tried to use unauthorized command")
+      return
 
 @client.event
 async def on_message_delete(message):
@@ -511,32 +707,93 @@ async def on_message_delete(message):
     return
   if message.guild is None:
     return
-  msg = f"message: '{message.content}' was deleted in **#{message.channel}**"
+  msg = f"message id<{message.id}> was deleted in **#{message.channel}**:\n{message.content}"
   embedVar = discord.Embed(color=0x000000, description=msg)
   embedVar.set_author(name=message.author.display_name,icon_url=message.author.avatar_url,)
   await trashbin.send(embed = embedVar)
+  return
 
 @client.event
 async def on_message_edit(before, after):
-  content = "**Before:**\n" + before.content + "\n" + f"**[After]({after.jump_url}):**\n" + after.content
+  if before is None or after is None:
+    return
+  if before.guild is None or after.guild is None:
+    return
+  if before.content == after.content:
+    return
+
+  content = f"ID:{before.id}\n**Before:**\n{before.content}\n**[After]({after.jump_url}):**\n{after.content}"
   embedVar = discord.Embed(color=0x000000, description=content)
   embedVar.set_author(name=before.author.display_name,icon_url=before.author.avatar_url,)
   await trashbin.send(embed = embedVar)
+  return
+
+@client.event
+async def on_member_join(member):
+  if member.id not in members:
+    members[str(member.id)] = User(member.id)
+    write_exp_data(member.id)
+
+@client.event
+async def on_member_remove(member):
+  members[str(member.id)].penalty()
+  write_exp_data(member.id)    
+
+def write_exp_data(id:int):
+  data = asdict(members[str(id)])
+  data.pop("last_message")
+  data.pop("last_gain")
+  memberdict[str(id)] = data
+  with open(USEREXP_PATH, "w") as f:
+    f.write(json.dumps(memberdict))
 
 def comment(value):
   if value == 69:
     return "%. Nice!"
-  elif value < 20:
+  elif value == 0:
+    return "%. Do you hate each other that much?"
+  elif value < 15:
     return "%. What a failure!"
-  elif value < 40:
+  elif value < 30:
     return "%. Terrible!"
+  elif value < 45:
+    return "%. Not really good!"
   elif value < 60:
     return "%. Not bad!"
-  elif value < 80:
+  elif value < 75:
     return "%. Great!"
+  elif value < 90:
+    return "%. Excellent!"
   else:
     return "%. Congratulation!"
-  
+
+async def send_match(channel,member1:str,member2:str):
+  now = datetime.utcnow()
+  # create hash key based on members
+  couple = member1 + member2
+  couple2 = member2 + member1
+  # check if reverse key exists, if yes, use that as key
+  if(couple2 in matchhash):
+    couple = couple2
+  # in case of key exists, treat its data first
+  if(couple in matchhash):
+    # check time
+    data = matchhash[couple][1:]
+    delta = datetime(year = data[0], month = data[1], day = data[2], hour = data[3], minute = data[4], second = data[5]) - now
+    # if it is still under cooldown, take old value
+    if(delta < timedelta(seconds = CD_MATCH)):
+      compatibility = matchhash[couple][0]
+      embedVar = embedMatch(member1, member2,compatibility)
+      await channel.send(embed=embedVar)
+      return
+  # in case key not exist, or off cooldown, take new values
+  compatibility = random.randrange(100)
+  embedVar = embedMatch(member1, member2,compatibility)
+  await channel.send(embed=embedVar)
+  matchhash[couple] = [compatibility,now.year,now.month,now.day,now.hour,now.minute,now.second]
+  with open(MATCH_PATH,"w") as f:
+    f.write(json.dumps(matchhash))
+
 def embedMatch(person1, person2, matchvalue):
   string = "The compatibility of " + person1 + " and " + person2 + " is " + str(matchvalue) + comment(matchvalue)
   return discord.Embed(color=0x000000, description=string)
@@ -550,6 +807,17 @@ def parse_number(value):
     return int(value)
   except:
     return None
+
+def add_suffix(number:int):
+  ending = ["st","nd","rd"]
+  i = number + 1
+  if (i % 100) == 10 or (i % 100) == 12 or (i % 100) == 13 or (i % 10) > 3:
+    return "th"
+  
+  return ending[number % 10]
+
+def add_exp_multiplier(multiplier:float):
+  return f" - {multiplier}x" if multiplier>1 else ""
 
 keep_alive()
 client.run(os.getenv('DISCORD_TOKEN'))
