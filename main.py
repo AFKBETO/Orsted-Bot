@@ -17,9 +17,10 @@ defaultvalue = {
   "spankdur":5
 }
 NUMERALS = "0123456789"
-intents = discord.Intents.default()
+'''intents = discord.Intents.default()
 intents.members = True
-client = discord.Client(intents = intents)
+client = discord.Client(intents = intents)'''
+client = discord.Client()
 
 randspank = ["https://c.tenor.com/4RIbgFCLRrUAAAAC/rikka-takanashi-bad-girl.gif", "https://c.tenor.com/WNnO4lxUMVQAAAAC/anime-school-girl.gif", "https://c.tenor.com/5ropePOLZV4AAAAC/bad-beat.gif", "https://c.tenor.com/gScnebhgJn4AAAAC/taritari-anime-spank.gif"]
 oldspank = ""
@@ -58,9 +59,10 @@ ID_CHANNELS_CAH = [919591734495825921,919593810034589706]
 
 USEREXP_PATH = "userexp.json"
 MATCH_PATH = "match.json"
-EXP_LOG_PATH = "explog.json"
+
 members = dict()
 memberdict = dict()
+periodic_counter = 0
 
 with open('CAH_question.txt', 'r') as f:
     questions = [line.strip() for line in f]
@@ -124,15 +126,21 @@ async def on_ready():
     trashbin = targetguild.get_channel(ID_CHANNEL_TRASHBIN)
     weekMessage = await dbChannel.fetch_message(ID_MSG_TIME)
     
-    # read member exp
+    
+    '''# read member exp
+    file_empty = False
+    file_not_integrity = False
     with open(USEREXP_PATH,"r") as f:
       try:
         memberdict = json.loads(f.read())
       except:
         memberdict = None
+        file_empty = True
     if memberdict:
       for id in memberdict:
         members[id] = from_dict(data_class=User,data=memberdict[id],config=Config(check_types=False))
+      if len(members) != len(memberdict):
+        file_not_integrity = True
     else:
       memberdict = dict()
       async for unit in targetguild.fetch_members():
@@ -144,6 +152,13 @@ async def on_ready():
       with open(USEREXP_PATH, "w") as f:
         f.write(json.dumps(memberdict))
 
+    if file_empty:
+        send_log("Orsted bot resets and find file empty.")
+    elif file_not_integrity:
+        send_log("Orsted bot resets and find file corrupted.")
+    else:
+        send_log("Orsted bot resets and copied file successfully.")'''
+    
     # read match
     with open(MATCH_PATH, "r") as f:
       try:
@@ -189,9 +204,24 @@ async def on_message(message):
     global answers
     global questions
     global ID_ROLE_BOT
+    '''global periodic_counter
     cah_multiplier = 1.3
     sauce_multiplier = 1.5
-    art_multiplier = 2
+    art_multiplier = 2'''
+
+    '''periodic_counter += 1
+
+    if periodic_counter >= 500:
+      periodic_counter = 0
+      with open(USEREXP_PATH,"r") as f:
+        dictchecker = len(json.loads(f.read()))
+      if dictchecker != len(members):
+        send_log("Periodic check finds error on [members].")
+      elif dictchecker != len(memberdict):
+        send_log("Periodic check finds error on [memberdict].")
+      else:
+        send_log("Periodic check finds no error yet.")'''
+
 
     if message.author == client.user:
         return
@@ -199,14 +229,13 @@ async def on_message(message):
     if message.guild.get_role(ID_ROLE_BOT) in message.author.roles:
         return
     
-    if message.content.startswith('!exp'):
+    '''if message.content.startswith('!exp'):
         if message.channel.id != 922829958999597157:
             return
         target = message.author
         if message.mentions:
           target = message.mentions[0]
-        with open(EXP_LOG_PATH,"a") as f:
-          f.write(f"{datetime.utcnow()}: {message.author.name} requests exp of {target.name}\n")
+        send_log(f"{message.author.name} requests exp of {target.name}.")
         for i,data in enumerate(sorted(members.items(), key=lambda m:m[1].exp, reverse=True)):
           if data[0] == str(target.id):
             member = data[1]
@@ -228,105 +257,126 @@ async def on_message(message):
         await message.channel.send(string)
         return
 
+    if message.content.startswith('!deletelog'):
+      if adminrole in message.author.roles:
+          index = 1
+          while(os.path.exists(f"explog{index}.json")):
+              os.remove(f"explog{index}.json") 
+              index += 1
+      else:
+          send_log(f"{message.author.name} tried to delete log!")
+      return
+
     if message.content.startswith('!resetlb'):
       if adminrole in message.author.roles:
-        for id in members:
-            members[id].reset_exp()
-            write_exp_data(int(id))
-        return
+          for id in members:
+              members[id].reset_exp()
+              write_exp_data(int(id))
+      else:
+          send_log(f"{message.author.name} tried to reset exp!")
+      return
 
     if message.content.startswith('!penalty'):
-        if message.mentions:
-            s = "List of member got mudded:\n"
-            for mention in message.mentions:
-                members[str(mention.id)].penalty()
-                write_exp_data(mention.id)
-                s += f"{mention.mention}\n"
+        if adminrole in message.author.roles:
+            if message.mentions:
+                s = "List of member got mudded:\n"
+                for mention in message.mentions:
+                    members[str(mention.id)].penalty()
+                    write_exp_data(mention.id)
+                    s += f"{mention.mention}\n"
+            else:
+                s = "No member specified!"
+            embedVar = discord.Embed(color=0xFF0000, description=s)
+            await message.channel.send(embed=embedVar)
         else:
-            s = "No member specified!"
-        embedVar = discord.Embed(color=0xFF0000, description=s)
-        await message.channel.send(embed=embedVar)
+            send_log(f"{message.author.name} tried to use penalty!")
         return
     
     # check if member exists already (just in case)
     try:
-      member = members[str(message.author.id)]
+        member = members[str(message.author.id)]
     except:
-      members[str(message.author.id)] = User(str(message.author.id))
-      data = asdict(members[str(message.author.id)])
-      data.pop("last_message")
-      data.pop("last_gain")
-      memberdict[str(message.author.id)] = data
-      member = members[str(message.author.id)]
+        members[str(message.author.id)] = User(str(message.author.id))
+        data = asdict(members[str(message.author.id)])
+        data.pop("last_message")
+        data.pop("last_gain")
+        memberdict[str(message.author.id)] = data
+        member = members[str(message.author.id)]
     
     # exp calculation
     current_time = datetime.utcnow() - member.last_message
     posting_sauce = False
     if(timedelta(seconds=member.last_gain+10)<current_time or ((message.channel.id in ID_CHANNELS_CAH or message.channel.id in ID_CHANNELS_SAUCE or message.channel.id == ID_CHANNEL_SHAME or message.channel.id == ID_CHANNEL_ART)) and (message.attachments or message.embeds)):
-        exp_gain = 0
+        exp_gain = random.randrange(5,13)
         exp_multiplier = 1
         if message.channel.id in ID_CHANNELS_CAH:
           exp_multiplier = cah_multiplier
-          exp_gain += exp_multiplier * random.randrange(5,13)
         elif message.attachments:
           if message.channel.id in ID_CHANNELS_SAUCE:
             posting_sauce = True
             exp_multiplier = sauce_multiplier
-            for i in message.attachments:
-              exp_gain += random.randrange(5,13) * exp_multiplier
+            for i in range(len(message.attachments) - 1):
+              exp_gain += random.randrange(5,13)
           elif message.channel.id == ID_CHANNEL_SHAME:
             posting_sauce = True
             exp_multiplier = sauce_multiplier
-            for i in message.attachments:
-              exp_gain += random.randrange(5,13) * exp_multiplier
+            for i in range(len(message.attachments) - 1):
+              exp_gain += random.randrange(5,13)
           elif message.channel.id == ID_CHANNEL_ART:
             exp_multiplier = art_multiplier
-            for i in message.attachments:
-              exp_gain += random.randrange(5,13) * exp_multiplier
+            for i in range(len(message.attachments) - 1):
+              exp_gain += random.randrange(5,13)
         elif message.embeds:
           if message.channel.id in ID_CHANNELS_SAUCE:
             posting_sauce = True
             exp_multiplier = sauce_multiplier
-            for i in message.embeds:
-              exp_gain += exp_multiplier * random.randrange(5,13)
+            for i in range(len(message.embeds) - 1):
+              exp_gain += random.randrange(5,13)
           elif message.channel.id == ID_CHANNEL_ART:
             posting_sauce = True
             exp_multiplier = art_multiplier
-            for i in message.embeds:
-              exp_gain += exp_multiplier * random.randrange(5,13)
-        else:
-          exp_gain = random.randrange(5,13)
+            for i in range(len(message.embeds) - 1):
+              exp_gain += random.randrange(5,13)
+        exp_gain *= exp_multiplier
         member.add_exp(exp_gain)
         if posting_sauce:
           member.last_gain = 0
         member.set_last_message()
         write_exp_data(message.author.id)
-        with open(EXP_LOG_PATH,"r+") as f:
+        EXP_LOG_PATH = "explog.json"
+        with open(EXP_LOG_PATH,"r") as f:
           content = f.read()
-          if(len(content)>5000):
-            check_index = 1
-            while(os.path.exists(f"explog{check_index}.json")):
-              check_index += 1
-            with open(f"explog{check_index}.json","x") as copy:
-              copy.write(content)
-            f.truncate(0)
-        with open(EXP_LOG_PATH,"a") as f:
-          f.write(f"{member.last_message}: {member.id == message.author.id} {message.author.name} - {exp_gain}exp{add_exp_multiplier(exp_multiplier)}\n")
+        if(len(content)>5000):
+          check_index = 1
+          while(os.path.exists(f"explog{check_index}.json")):
+            check_index += 1
+          with open(f"explog{check_index}.json","x") as copy:
+            copy.write(content)
+          with open(EXP_LOG_PATH,"w") as f:
+              f.truncate(0)
+        temp = member.last_message
+        if member.id == str(message.author.id):
+          check_id = True
+        else:
+          check_id = f"{member.id}-{message.author.id}" 
+        send_log(f"{check_id} {message.author.name} - {exp_gain}exp{add_exp_multiplier(exp_multiplier)}.",temp)'''
 
 
     if message.content.startswith('!prune '):
         if message.author.guild_permissions.manage_messages:
-          amount = parse_number(message.content[7:])
-          if amount is None:
-              general.send(content="Please specify the amount to purge", delete_after = 15)
-          else:
-              listmsg = await message.channel.purge(limit=amount)
-              if len(listmsg) > 1:
-                for msg in listmsg[1:]:
-                  content = f"message: '{msg.content}' was deleted in **#{msg.channel}**"
-                  embedVar = discord.Embed(color=0x000000, description=content)
-                  embedVar.set_author(name=msg.author.display_name,icon_url=msg.author.avatar_url,)
-                  await trashbin.send(embed = embedVar)
+            amount = parse_number(message.content[7:])
+            if amount is None:
+                general.send(content="Please specify the amount to purge", delete_after = 15)
+            else:
+                listmsg = await message.channel.purge(limit=amount)
+                if len(listmsg) > 1:
+                    for msg in listmsg[1:]:
+                        content = f"message: '{msg.content}' was deleted in **#{msg.channel}**"
+                        embedVar = discord.Embed(color=0x000000, description=content)
+                        embedVar.set_author(name=msg.author.display_name,icon_url=msg.author.avatar_url,)
+                        await trashbin.send(embed = embedVar)
+        else:
+            send_log(f"{message.author.name} tried to prune!")
         return
 
     if message.channel.id == 899259828562710578:
@@ -794,11 +844,11 @@ async def send_match(channel,member1:str,member2:str):
   with open(MATCH_PATH,"w") as f:
     f.write(json.dumps(matchhash))
 
-def embedMatch(person1, person2, matchvalue):
+def embedMatch(person1, person2, matchvalue) -> discord.Embed:
   string = "The compatibility of " + person1 + " and " + person2 + " is " + str(matchvalue) + comment(matchvalue)
   return discord.Embed(color=0x000000, description=string)
 
-def embedShip(author,person1,person2):
+def embedShip(author,person1,person2) -> discord.Embed:
   string = author + " has shipped " + person1 + " and " + person2
   return discord.Embed(color=0x000000, description=string)
 
@@ -808,7 +858,12 @@ def parse_number(value):
   except:
     return None
 
-def add_suffix(number:int):
+def send_log(string:str,now:datetime = datetime.utcnow()):
+    EXP_LOG_PATH = "explog.json"
+    with open(EXP_LOG_PATH,"a") as f:
+        f.write(f"{now.date()} {now.time():%X}: {string}\n")
+
+def add_suffix(number:int) -> str:
   ending = ["st","nd","rd"]
   i = number + 1
   if (i % 100) == 10 or (i % 100) == 12 or (i % 100) == 13 or (i % 10) > 3:
@@ -816,7 +871,7 @@ def add_suffix(number:int):
   
   return ending[number % 10]
 
-def add_exp_multiplier(multiplier:float):
+def add_exp_multiplier(multiplier:float) -> str:
   return f" - {multiplier}x" if multiplier>1 else ""
 
 keep_alive()

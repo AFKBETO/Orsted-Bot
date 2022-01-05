@@ -28,8 +28,8 @@ class User:
   last_gain:int = field(default = 0, init = False)
 
   def add_exp(self,amount:int):
-    self.exp += amount
-    self.last_gain = amount
+    self.exp = int(self.exp + amount)
+    self.last_gain = int(amount)
     if self.exp < 0:
       self.exp = 0
       self.last_gain = 0
