@@ -7,9 +7,6 @@ import time
 import json
 from keep_alive import keep_alive
 from datetime import datetime, timedelta
-from database import User
-from dataclasses import asdict
-from dacite import from_dict, Config
 
 t1 = datetime(year=2021,month=11,day=14,hour=16)
 
@@ -60,9 +57,9 @@ ID_CHANNELS_CAH = [919591734495825921,919593810034589706]
 USEREXP_PATH = "userexp.json"
 MATCH_PATH = "match.json"
 
-members = dict()
+'''members = dict()
 memberdict = dict()
-periodic_counter = 0
+periodic_counter = 0'''
 
 with open('CAH_question.txt', 'r') as f:
     questions = [line.strip() for line in f]
@@ -98,8 +95,8 @@ async def on_ready():
     global weekMessage
     global weeks
     global t1
-    global memberdict
-    global members
+    '''global memberdict
+    global members'''
     global matchhash
 
     start = time.perf_counter()
@@ -111,7 +108,6 @@ async def on_ready():
         if emote.name == "KissSylphy":
             ksilp = emote
     
-    spankdur = defaultvalue["spankdur"]
     
     targetguild = client.get_guild(ID_GUILD)
     adminrole = targetguild.get_role(ID_ROLE_ADMIN)
@@ -690,6 +686,20 @@ async def on_message(message):
         await message.channel.send(wholesomekiss[j])
         return
     
+    if message.content.lower().startswith('!nontr'):
+        await message.channel.send('https://media.discordapp.net/attachments/823953644500156416/953241557971111956/image0.jpg?width=358&height=676')
+        return
+
+  
+    if message.content.lower().startswith('!nofuta'):
+        await message.channel.send('https://cdn.discordapp.com/attachments/954785875764604989/954785974339133480/92g0aoeoqpi21.png')
+        return
+
+    if message.content.lower().startswith('!ntr'):
+        await message.channel.send('https://cdn.discordapp.com/attachments/824175906120663060/954792431839215706/unknown.png')
+        return
+    
+    
     if message.content.startswith('!roxynom'):
         await message.channel.send('https://media.discordapp.net/attachments/814309698295562240/838067728711024700/8f68c86.gif')
         return
@@ -778,7 +788,7 @@ async def on_message_edit(before, after):
   await trashbin.send(embed = embedVar)
   return
 
-@client.event
+'''@client.event
 async def on_member_join(member):
   if member.id not in members:
     members[str(member.id)] = User(member.id)
@@ -795,7 +805,7 @@ def write_exp_data(id:int):
   data.pop("last_gain")
   memberdict[str(id)] = data
   with open(USEREXP_PATH, "w") as f:
-    f.write(json.dumps(memberdict))
+    f.write(json.dumps(memberdict))'''
 
 def comment(value):
   if value == 69:

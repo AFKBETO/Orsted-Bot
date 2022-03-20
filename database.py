@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from datetime import datetime
 
 def parse_line(line):
@@ -20,7 +19,7 @@ def parse_number(raw):
     except:
         return raw.strip(" ")
 
-@dataclass(order=True)
+'''@dataclass(order=True)
 class User:
   id:str
   exp:int = field(default = 0)
@@ -45,4 +44,4 @@ class User:
     self.last_gain = 0
 
   def set_last_message(self):
-    self.last_message = datetime.utcnow()
+    self.last_message = datetime.utcnow()'''
